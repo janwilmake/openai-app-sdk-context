@@ -1,4 +1,4 @@
-<!-- https://letmeprompt.com/httpsuithubcomj-6o8zhogvfwqo70 -->
+<!-- https://letmeprompt.com/rules-httpsuithu-nom3xm8yfapsrl -->
 
 # OpenAI Apps SDK Extensions to MCP
 
@@ -12,25 +12,20 @@ OpenAI extends MCP resources to support interactive UI components that run in a 
 
 **Resource Registration:**
 
-```typescript
-server.registerResource(
-  "widget-name",
-  "ui://widget/widget.html",
-  {},
-  async () => ({
-    contents: [
-      {
-        uri: "ui://widget/widget.html",
-        mimeType: "text/html+skybridge", // OpenAI-specific MIME type
-        text: `
-<div id="widget-root"></div>
-<link rel="stylesheet" href="https://example.com/widget.css">
-<script type="module" src="https://example.com/widget.js"></script>
-        `.trim(),
-      },
-    ],
-  })
-);
+```json
+{
+  "uri": "ui://widget/widget.html",
+  "mimeType": "text/html+skybridge",
+  "text": "<div id=\"widget-root\"></div>\n<link rel=\"stylesheet\" href=\"https://example.com/widget.css\">\n<script type=\"module\" src=\"https://example.com/widget.js\"></script>",
+  "_meta": {
+    "openai/widgetDescription": "Interactive UI showing user's tasks",
+    "openai/widgetPrefersBorder": true,
+    "openai/widgetCSP": {
+      "connect_domains": ["https://api.example.com"],
+      "resource_domains": ["https://cdn.example.com"]
+    }
+  }
+}
 ```
 
 **Key Points:**
@@ -44,75 +39,53 @@ server.registerResource(
 
 OpenAI injects a global `window.openai` object for component-host communication:
 
-#### Data Access
+#### Data Access Properties
 
-```typescript
-// Tool input/output data
-const toolInput = window.openai?.toolInput as YourInputType;
-const toolOutput = window.openai?.toolOutput as YourOutputType;
-
-// Persistent component state
-const widgetState = window.openai?.widgetState as YourStateType;
+```javascript
+// Tool input/output data (read-only)
+window.openai.toolInput; // Arguments passed to the tool
+window.openai.toolOutput; // Structured data returned by tool
+window.openai.widgetState; // Persistent component state
 ```
 
-#### State Persistence
+#### Host Environment Properties
 
-```typescript
-// Save component state (persists across conversation)
-await window.openai?.setWidgetState?.({
-  selectedItems: [...],
-  filters: {...},
-  __v: 1 // version for migration
-});
+```javascript
+// Layout and theming (read-only)
+window.openai.displayMode; // "inline", "pip", "fullscreen"
+window.openai.maxHeight; // Maximum container height in pixels
+window.openai.theme; // "light" or "dark"
+window.openai.locale; // BCP 47 format (e.g., "en-US")
 ```
 
-#### Tool Calls from Components
+#### Component Actions
 
-```typescript
-// Call tools from within the component
-await window.openai?.callTool("refresh_data", { param: "value" });
-```
+```javascript
+// State persistence
+await window.openai.setWidgetState(stateObject);
 
-#### Conversational Integration
+// Tool invocation from component
+await window.openai.callTool("tool_name", { param: "value" });
 
-```typescript
-// Send follow-up messages to the conversation
-await window.openai?.sendFollowupTurn({
-  prompt: "Create a summary of the selected items",
-});
-```
+// Conversation integration
+await window.openai.sendFollowupTurn({ prompt: "Create a summary" });
 
-#### Layout Management
-
-```typescript
-// Request different display modes
-await window.openai?.requestDisplayMode({ mode: "fullscreen" });
-// Options: "inline", "pip", "fullscreen"
-
-// Read current layout constraints
-const maxHeight = window.openai?.maxHeight;
-const displayMode = window.openai?.displayMode;
-```
-
-#### Theming and Localization
-
-```typescript
-// Access user's theme and locale
-const theme = window.openai?.theme; // "light" or "dark"
-const locale = window.openai?.locale; // BCP 47 format
+// Layout requests
+await window.openai.requestDisplayMode({ mode: "fullscreen" });
 ```
 
 #### Event Handling
 
-```typescript
+```javascript
 // Listen for host updates
 window.addEventListener("openai:set_globals", (event) => {
-  // Globals changed (theme, layout, etc.)
+  // Triggered when globals change (theme, layout, toolOutput, etc.)
+  const { globals } = event.detail;
 });
 
 window.addEventListener("openai:tool_response", (event) => {
-  // Tool call completed
-  const { tool } = event.detail;
+  // Triggered after callTool completes
+  const { tool } = event.detail; // { name, args }
 });
 ```
 
@@ -120,171 +93,159 @@ window.addEventListener("openai:tool_response", (event) => {
 
 ### OpenAI-Specific `_meta` Fields
 
-Standard MCP tools are extended with OpenAI-specific metadata:
+Standard MCP tools are extended with OpenAI-specific metadata in the `_meta` object:
 
-```typescript
-server.registerTool(
-  "tool_name",
-  {
-    title: "Tool Title",
-    description: "Standard MCP description",
-    inputSchema: {
-      /* standard JSON schema */
-    },
-
-    // OpenAI extensions in _meta
-    _meta: {
-      // Link to UI component
-      "openai/outputTemplate": "ui://widget/widget.html",
-
-      // Allow component-initiated calls
-      "openai/widgetAccessible": true,
-
-      // Status messages during execution
-      "openai/toolInvocation/invoking": "Processing...",
-      "openai/toolInvocation/invoked": "Complete",
-
-      // Locale support
-      "openai/locale": "en-US",
-    },
+```json
+{
+  "name": "tool_name",
+  "title": "Tool Title",
+  "description": "Standard MCP description",
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
   },
-  async (input, context) => {
-    // Implementation
+  "_meta": {
+    "openai/outputTemplate": "ui://widget/widget.html",
+    "openai/widgetAccessible": true,
+    "openai/toolInvocation/invoking": "Processing...",
+    "openai/toolInvocation/invoked": "Complete",
+    "openai/locale": "en-US"
   }
-);
-```
-
-### Enhanced Tool Results
-
-OpenAI extends MCP tool results with additional fields:
-
-```typescript
-return {
-  // Standard MCP fields
-  content: [{ type: "text", text: "Human-readable result" }],
-
-  // OpenAI extension: structured data for both model and component
-  structuredContent: {
-    items: [...],
-    metadata: {...}
-  },
-
-  // OpenAI extension: component-only data (hidden from model)
-  _meta: {
-    fullDataset: [...], // Component needs this, but model doesn't
-    internalIds: [...],
-    renderingHints: {...}
-  }
-};
-```
-
-### Security Schemes (Per-Tool Auth)
-
-OpenAI extends MCP with per-tool authentication requirements:
-
-```typescript
-server.registerTool(
-  "protected_tool",
-  {
-    title: "Protected Tool",
-    description: "Requires authentication",
-    inputSchema: {
-      /* schema */
-    },
-
-    // Standard MCP field, enhanced by OpenAI
-    securitySchemes: [{ type: "oauth2", scopes: ["read", "write"] }],
-
-    // OpenAI also mirrors this in _meta for compatibility
-    _meta: {
-      securitySchemes: [{ type: "oauth2", scopes: ["read", "write"] }],
-    },
-  },
-  async (input) => {
-    /* implementation */
-  }
-);
-```
-
-## Component Metadata
-
-### Widget Configuration
-
-Configure component behavior through resource metadata:
-
-```typescript
-server.registerResource("widget", "ui://widget/widget.html", {}, async () => ({
-  contents: [
-    {
-      uri: "ui://widget/widget.html",
-      mimeType: "text/html+skybridge",
-      text: componentHtml,
-      _meta: {
-        // Description shown to the model when component renders
-        "openai/widgetDescription": "Interactive UI showing user's tasks",
-
-        // Request bordered card layout
-        "openai/widgetPrefersBorder": true,
-
-        // Content Security Policy configuration
-        "openai/widgetCSP": {
-          connect_domains: ["https://api.example.com"],
-          resource_domains: ["https://cdn.example.com"],
-        },
-
-        // Custom subdomain (optional)
-        "openai/widgetDomain": "https://myapp.com",
-      },
-    },
-  ],
-}));
-```
-
-### Content Security Policy
-
-OpenAI requires explicit CSP declaration for security:
-
-```typescript
-"openai/widgetCSP": {
-  // Domains component can make network requests to
-  connect_domains: [
-    "https://api.myservice.com",
-    "https://auth.myservice.com"
-  ],
-
-  // Domains for static resources (CSS, JS, images, fonts)
-  resource_domains: [
-    "https://cdn.myservice.com",
-    "https://fonts.googleapis.com"
-  ]
 }
 ```
 
-This maps to CSP rules:
+**Field Definitions:**
 
-- `connect-src 'self' ${connect_domains}`
-- `script-src 'self' ${resource_domains}`
-- `img-src 'self' data: ${resource_domains}`
-- `font-src 'self' ${resource_domains}`
+| Field                            | Type               | Purpose                              |
+| -------------------------------- | ------------------ | ------------------------------------ |
+| `openai/outputTemplate`          | string (URI)       | Links to UI component resource       |
+| `openai/widgetAccessible`        | boolean            | Allow component-initiated tool calls |
+| `openai/toolInvocation/invoking` | string (≤64 chars) | Status text while tool runs          |
+| `openai/toolInvocation/invoked`  | string (≤64 chars) | Status text after completion         |
+| `openai/locale`                  | string (BCP 47)    | Resolved locale for this response    |
+
+### Enhanced Tool Results
+
+OpenAI extends standard MCP tool results with additional fields:
+
+```json
+{
+  "content": [{ "type": "text", "text": "Human-readable result" }],
+  "structuredContent": {
+    "items": [],
+    "metadata": {}
+  },
+  "_meta": {
+    "fullDataset": [],
+    "internalIds": [],
+    "renderingHints": {}
+  }
+}
+```
+
+**Field Definitions:**
+
+| Field               | Visibility        | Purpose                                   |
+| ------------------- | ----------------- | ----------------------------------------- |
+| `content`           | Model + Component | Standard MCP content                      |
+| `structuredContent` | Model + Component | Structured data for both consumers        |
+| `_meta`             | Component only    | Component-specific data hidden from model |
+
+### Security Schemes (Per-Tool Authentication)
+
+OpenAI extends MCP with per-tool authentication requirements using both standard and `_meta` fields:
+
+```json
+{
+  "name": "protected_tool",
+  "title": "Protected Tool",
+  "securitySchemes": [{ "type": "oauth2", "scopes": ["read", "write"] }],
+  "_meta": {
+    "securitySchemes": [{ "type": "oauth2", "scopes": ["read", "write"] }]
+  }
+}
+```
+
+**Supported Security Types:**
+
+- `"noauth"` - Callable anonymously
+- `"oauth2"` - Requires OAuth 2.0 with optional scopes
+
+## Component Resource Metadata
+
+### Widget Configuration
+
+Configure component behavior through resource `_meta` fields:
+
+```json
+{
+  "uri": "ui://widget/widget.html",
+  "mimeType": "text/html+skybridge",
+  "text": "<html content>",
+  "_meta": {
+    "openai/widgetDescription": "Interactive UI showing user's tasks",
+    "openai/widgetPrefersBorder": true,
+    "openai/widgetCSP": {
+      "connect_domains": ["https://api.example.com"],
+      "resource_domains": ["https://cdn.example.com"]
+    },
+    "openai/widgetDomain": "https://myapp.com"
+  }
+}
+```
+
+**Field Definitions:**
+
+| Field                        | Type            | Purpose                                           |
+| ---------------------------- | --------------- | ------------------------------------------------- |
+| `openai/widgetDescription`   | string          | Description shown to model when component renders |
+| `openai/widgetPrefersBorder` | boolean         | Request bordered card layout                      |
+| `openai/widgetCSP`           | object          | Content Security Policy configuration             |
+| `openai/widgetDomain`        | string (origin) | Custom subdomain for component                    |
+
+### Content Security Policy
+
+The `openai/widgetCSP` object defines allowed network access:
+
+```json
+{
+  "openai/widgetCSP": {
+    "connect_domains": [
+      "https://api.myservice.com",
+      "https://auth.myservice.com"
+    ],
+    "resource_domains": [
+      "https://cdn.myservice.com",
+      "https://fonts.googleapis.com"
+    ]
+  }
+}
+```
+
+This maps to CSP directives:
+
+- `connect-src 'self' ${connect_domains.join(' ')}`
+- `script-src 'self' ${resource_domains.join(' ')}`
+- `img-src 'self' data: ${resource_domains.join(' ')}`
+- `font-src 'self' ${resource_domains.join(' ')}`
 
 ## Authentication Extensions
 
 ### OAuth 2.1 with MCP Integration
 
-OpenAI extends MCP's auth support with specific OAuth 2.1 requirements:
+OpenAI requires specific OAuth 2.1 endpoints for authentication:
 
-**Required OAuth Endpoints:**
+**Required OAuth Discovery Endpoints:**
 
-```typescript
-// Your authorization server must provide:
-// /.well-known/oauth-protected-resource
+```
+/.well-known/oauth-protected-resource
 {
   "authorization_servers": ["https://auth.example.com"],
   "resource_server": "https://api.example.com",
   "scopes": ["read", "write"]
 }
 
-// /.well-known/openid-configuration
+/.well-known/openid-configuration
 {
   "authorization_endpoint": "https://auth.example.com/oauth/authorize",
   "token_endpoint": "https://auth.example.com/oauth/token",
@@ -293,76 +254,60 @@ OpenAI extends MCP's auth support with specific OAuth 2.1 requirements:
 }
 ```
 
-**Server-Side Auth Configuration:**
-
-```python
-# Using FastMCP (Python)
-from mcp.server.auth.settings import AuthSettings
-
-mcp = FastMCP(
-    auth=AuthSettings(
-        issuer_url="https://your-tenant.auth0.com",
-        resource_server_url="https://api.example.com/mcp",
-        required_scopes=["user"]
-    )
-)
-```
-
 ### Token Verification
 
-OpenAI expects proper JWT verification on protected endpoints:
+Protected MCP endpoints must verify JWT tokens:
 
-```python
-class MyVerifier(TokenVerifier):
-    async def verify_token(self, token: str) -> AccessToken | None:
-        payload = validate_jwt(token, jwks_url)
-        if "user" not in payload.get("permissions", []):
-            return None
-        return AccessToken(
-            token=token,
-            client_id=payload["azp"],
-            subject=payload["sub"],
-            scopes=payload.get("permissions", []),
-            claims=payload
-        )
+1. Validate JWT signature using `jwks_uri`
+2. Check issuer, audience, expiration
+3. Verify required scopes are present
+4. Return `401 Unauthorized` with `WWW-Authenticate` header on failure
+
+### Error Handling for Auth
+
+On authentication failures, include specific `_meta` fields:
+
+```json
+{
+  "content": [{ "type": "text", "text": "Authentication required" }],
+  "_meta": {
+    "mcp/www_authenticate": "Bearer realm=\"api\", error=\"invalid_token\""
+  }
+}
 ```
 
 ## Context and Hints
 
 ### Request Context
 
-OpenAI provides additional context in MCP requests:
+OpenAI provides additional context in MCP request `_meta` fields:
 
-```typescript
-// Available in _meta of tool calls
-const context = {
-  "openai/locale": "en-US", // User's locale
-  "openai/userAgent": "ChatGPT/1.0", // Client identifier
-  "openai/userLocation": {
-    // Coarse location (optional)
-    city: "San Francisco",
-    region: "California",
-    country: "US",
-    timezone: "America/Los_Angeles",
-    longitude: -122.4194,
-    latitude: 37.7749,
-  },
-};
+```json
+{
+  "_meta": {
+    "openai/locale": "en-US",
+    "openai/userAgent": "ChatGPT/1.0",
+    "openai/userLocation": {
+      "city": "San Francisco",
+      "region": "California",
+      "country": "US",
+      "timezone": "America/Los_Angeles",
+      "longitude": -122.4194,
+      "latitude": 37.7749
+    }
+  }
+}
 ```
 
-### Error Handling
+**Field Definitions:**
 
-OpenAI-specific error responses for auth failures:
+| Field                 | When Present            | Purpose                         |
+| --------------------- | ----------------------- | ------------------------------- |
+| `openai/locale`       | Initialize + tool calls | User's preferred locale         |
+| `openai/userAgent`    | Tool calls              | Client identification           |
+| `openai/userLocation` | Tool calls              | Coarse location hint (optional) |
 
-```typescript
-// On 401 errors, include WWW-Authenticate header
-return {
-  content: [{ type: "text", text: "Authentication required" }],
-  _meta: {
-    "mcp/www_authenticate": 'Bearer realm="api", error="invalid_token"',
-  },
-};
-```
+**Note:** These are advisory only. Never rely on them for authorization decisions.
 
 ## Localization Support
 
@@ -370,99 +315,39 @@ return {
 
 OpenAI handles locale negotiation during MCP initialization:
 
-```typescript
-// In initialize request
+**Initialize Request:**
+
+```json
+{
+  "method": "initialize",
+  "params": {
+    "_meta": {
+      "openai/locale": "en-GB"
+    }
+  }
+}
+```
+
+**Server Response:**
+
+```json
 {
   "_meta": {
-    "openai/locale": "en-GB"
+    "openai/locale": "en"
   }
 }
+```
 
-// Server should respond with supported locale
+### Localized Tool Responses
+
+Include resolved locale in tool responses:
+
+```json
 {
+  "content": [{ "type": "text", "text": "Localized greeting" }],
   "_meta": {
-    "openai/locale": "en" // Closest match
+    "openai/locale": "en"
   }
-}
-```
-
-### Localized Responses
-
-```typescript
-server.registerTool(
-  "localized_tool",
-  {
-    title: "Localized Tool",
-    description: "Returns localized content",
-  },
-  async (input, { _meta }) => {
-    const locale = _meta?.["openai/locale"] ?? "en";
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: getLocalizedText(locale, "greeting"),
-        },
-      ],
-      _meta: {
-        "openai/locale": locale,
-      },
-    };
-  }
-);
-```
-
-## Component Development
-
-### React Integration Patterns
-
-OpenAI provides React hooks for common patterns:
-
-```typescript
-// Hook for accessing OpenAI globals
-function useOpenAiGlobal<K extends keyof OpenAiGlobals>(key: K) {
-  return useSyncExternalStore(
-    (onChange) => {
-      const handleSetGlobal = (event) => onChange();
-      window.addEventListener("openai:set_globals", handleSetGlobal);
-      return () =>
-        window.removeEventListener("openai:set_globals", handleSetGlobal);
-    },
-    () => window.openai[key]
-  );
-}
-
-// Hook for widget state management
-function useWidgetState<T>(defaultState: T) {
-  const widgetStateFromWindow = useOpenAiGlobal("widgetState") as T;
-  const [widgetState, _setWidgetState] = useState(() => {
-    return widgetStateFromWindow ?? defaultState;
-  });
-
-  const setWidgetState = useCallback((state: T) => {
-    _setWidgetState(state);
-    window.openai.setWidgetState(state);
-  }, []);
-
-  return [widgetState, setWidgetState] as const;
-}
-```
-
-### Navigation Integration
-
-OpenAI mirrors iframe history to ChatGPT UI:
-
-```typescript
-// Use standard React Router
-function MyComponent() {
-  const navigate = useNavigate();
-
-  function openDetails(id: string) {
-    navigate(`/details/${id}`); // ChatGPT will show back button
-  }
-
-  return <BrowserRouter>{/* your routes */}</BrowserRouter>;
 }
 ```
 
@@ -470,99 +355,105 @@ function MyComponent() {
 
 ### Mode-Specific Behavior
 
-Components can adapt to different display contexts:
+Components can adapt to three display contexts:
 
-```typescript
-function MyComponent() {
-  const displayMode = useOpenAiGlobal("displayMode");
-  const maxHeight = useOpenAiGlobal("maxHeight");
-
-  return (
-    <div
-      style={{
-        maxHeight,
-        height: displayMode === "fullscreen" ? maxHeight : 400,
-      }}
-    >
-      {displayMode === "inline" && <CompactView />}
-      {displayMode === "fullscreen" && <DetailedView />}
-      {displayMode === "pip" && <MinimalView />}
-    </div>
-  );
-}
-```
+| Mode         | Purpose             | Characteristics                                |
+| ------------ | ------------------- | ---------------------------------------------- |
+| `inline`     | Default embed       | Limited height, appears in conversation flow   |
+| `fullscreen` | Rich interactions   | Full screen, composer overlay, back navigation |
+| `pip`        | Persistent sessions | Floating window, stays visible during chat     |
 
 ### Requesting Mode Changes
 
-```typescript
-// Request fullscreen for rich content
-if (displayMode === "inline") {
-  await window.openai?.requestDisplayMode({ mode: "fullscreen" });
-}
+Components can request layout changes:
 
-// Request PiP for persistent sessions
-await window.openai?.requestDisplayMode({ mode: "pip" });
+```javascript
+// Request fullscreen for detailed content
+await window.openai.requestDisplayMode({ mode: "fullscreen" });
+
+// Request PiP for ongoing sessions
+await window.openai.requestDisplayMode({ mode: "pip" });
 ```
 
-## Development and Testing
+**Note:** Host decides whether to honor the request.
 
-### MCP Inspector Integration
+## Component Development Requirements
 
-OpenAI components work with MCP Inspector for testing:
+### Bundle Format
 
-1. Point Inspector to your MCP server: `http://localhost:3000/mcp`
-2. Inspector renders components inline with `window.openai` bridge
-3. Test tool calls, state persistence, and display modes
+Components must be self-contained ES modules:
 
-### Bundle Requirements
+- Bundle all dependencies (no external imports)
+- Use ES2020+ syntax
+- Include all CSS and assets inline or from declared CSP domains
+- Mount to a specific DOM element ID
 
-Components must be self-contained bundles:
+### State Management
 
-```typescript
-// esbuild configuration
-{
-  format: "esm",
-  bundle: true,
-  minify: true,
-  target: "es2020",
-  outfile: "dist/component.js"
-}
+```javascript
+// Initialize from host state or tool output
+const initialState = window.openai.widgetState || window.openai.toolOutput || defaultState;
+
+// Persist changes back to host
+await window.openai.setWidgetState({
+  selectedItems: [...],
+  filters: {...},
+  __v: 1  // Version for migration
+});
 ```
 
-Include all dependencies - no external imports allowed in the sandbox.
+### Navigation Integration
 
-## Production Considerations
+Standard History API works - ChatGPT mirrors iframe history:
 
-### Content Security Policy
+```javascript
+// Standard browser navigation
+history.pushState(state, title, url);
+history.replaceState(state, title, url);
 
-Components are sandboxed with strict CSP. Declare all required domains upfront:
-
-```typescript
-"openai/widgetCSP": {
-  connect_domains: [], // API endpoints
-  resource_domains: [] // CDNs, fonts, images
-}
+// ChatGPT shows back button and handles navigation
 ```
-
-### Performance
-
-- Components should render in <300ms
-- Use `structuredContent` for data the model needs to reason about
-- Use `_meta` for component-only data
-- Persist UI state with `setWidgetState` for conversation continuity
 
 ### Error Handling
 
-```typescript
-// Graceful degradation when window.openai unavailable
-const toolOutput = window.openai?.toolOutput ?? fallbackData;
+```javascript
+// Handle missing bridge API
+if (!window.openai) {
+  // Fallback or error state
+  return;
+}
 
 // Handle tool call failures
 try {
-  await window.openai?.callTool("refresh", {});
+  await window.openai.callTool("refresh", {});
 } catch (error) {
   // Show error state in UI
 }
 ```
 
-This covers all the major OpenAI-specific extensions to MCP needed to build ChatGPT apps. The key additions are the component system, enhanced tool metadata, authentication patterns, and the `window.openai` bridge API.
+## Production Considerations
+
+### Performance Requirements
+
+- Components should render in <300ms
+- Use `structuredContent` for data the model needs
+- Use `_meta` for component-only data
+- Keep `widgetState` payloads small
+
+### Security Restrictions
+
+Components run in strict sandbox:
+
+- No access to `window.alert`, `window.prompt`, `window.confirm`
+- No access to `navigator.clipboard`
+- No access to parent window or other frames
+- Network requests limited by CSP declarations
+
+### Testing with MCP Inspector
+
+1. Point MCP Inspector to your server: `http://localhost:3000/mcp`
+2. Inspector renders components with `window.openai` bridge
+3. Test tool calls, state persistence, and display modes
+4. Validate CSP compliance and error handling
+
+This covers all major OpenAI-specific extensions to MCP needed to build ChatGPT apps. The key additions are the component system with `window.openai` bridge, enhanced tool metadata, OAuth 2.1 authentication patterns, and display mode management.
