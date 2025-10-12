@@ -2,62 +2,170 @@ Title: Build a custom UX
 
 URL Source: https://developers.openai.com/apps-sdk/build/custom-ux
 
+Published Time: Fri, 10 Oct 2025 19:42:03 GMT
+
 Markdown Content:
 Overview
 --------
 
 UI components turn structured tool results into a human-friendly UI. Apps SDK components are typically React components that run inside an iframe, talk to the host via the `window.openai` API, and render inline with the conversation. This guide describes how to structure your component project, bundle it, and wire it up to your MCP server.
 
+You can also check out the [examples repository on GitHub](https://github.com/openai/openai-apps-sdk-examples).
+
 Understand the `window.openai` API
 ----------------------------------
 
-`window.openai` is the bridge between your iframe and ChatGPT. Use this quick reference to first understand how to wire up data, state, and layout concerns before you dive into component scaffolding.
-
-*   Layout globals exposed by the host: `displayMode`, `maxHeight`, `theme`, `locale`
-*   Tool payloads scoped to the current message: `toolInput`, `toolOutput`, and a host‑persisted `widgetState`
-*   Actions you can call from the iframe: `setWidgetState`, `callTool`, `sendFollowupTurn`, `requestDisplayMode`
-*   Events you can listen to: `openai:set_globals` and `openai:tool_response`
-
-### Access tool data
-
-To access the `structuredContent` output of your MCP call result, read from `window.openai.toolOutput`. For the inputs, use `window.openai.toolInput`.
+`window.openai` is the bridge between your frontend and ChatGPT. Use this quick reference to first understand how to wire up data, state, and layout concerns before you dive into component scaffolding.
 
 ```
-const toolInput = window.openai?.toolInput as { city?: string } | undefined;
-const toolOutput = window.openai?.toolOutput as PizzaListState | undefined;
+declare global {
+  interface Window {
+    openai: API & OpenAiGlobals;
+  }
 
-const places = toolOutput?.places ?? [];
-const favorites = toolOutput?.favorites ?? [];
-
-useEffect(() => {
-  if (!toolOutput) return;
-  // keep analytics, caches, or derived data in sync with the latest tool response
-}, [toolOutput]);
-```
-
-### Persist component state
-
-Use `window.openai.setWidgetState` when you want to remember UI decisions—favorites, filters, or drafts—across renders. Save a new snapshot after every meaningful change so the host can restore the component where the user left off.
-
-Read from `widgetState` first on mount, and fall back to `toolOutput` when state isn’t set yet.
-
-```
-async function persistFavorites(favorites: string[]) {
-  const places = window.openai?.toolOutput?.places ?? [];
-  await window.openai?.setWidgetState?.({
-    __v: 1,
-    places,
-    favorites,
-  });
+  interface WindowEventMap {
+    [SET_GLOBALS_EVENT_TYPE]: SetGlobalsEvent;
+  }
 }
 
-const initial: PizzaListState =
-  window.openai?.widgetState ??
-  window.openai?.toolOutput ?? {
-    places: [],
-    favorites: [],
+type OpenAiGlobals<
+  ToolInput extends UnknownObject = UnknownObject,
+  ToolOutput extends UnknownObject = UnknownObject,
+  ToolResponseMetadata extends UnknownObject = UnknownObject,
+  WidgetState extends UnknownObject = UnknownObject
+> = {
+  theme: Theme;
+  userAgent: UserAgent;
+  locale: string;
+
+  // layout
+  maxHeight: number;
+  displayMode: DisplayMode;
+  safeArea: SafeArea;
+
+  // state
+  toolInput: ToolInput;
+  toolOutput: ToolOutput | null;
+  toolResponseMetadata: ToolResponseMetadata | null;
+  widgetState: WidgetState | null;
+};
+
+type API<WidgetState extends UnknownObject> = {
+  /** Calls a tool on your MCP. Returns the full response. */
+  callTool: (name: string, args: Record<string, unknown>) => Promise<CallToolResponse>;
+  
+  /** Triggers a followup turn in the ChatGPT conversation */
+  sendFollowUpMessage: (args: { prompt: string }) => Promise<void>;
+  
+  /** Opens an external link, redirects web page or mobile app */
+  openExternal(payload: { href: string }): void;
+  
+  /** For transitioning an app from inline to fullscreen or pip */
+  requestDisplayMode: (args: { mode: DisplayMode }) => Promise<{
+    /**
+    * The granted display mode. The host may reject the request.
+    * For mobile, PiP is always coerced to fullscreen.
+    */
+    mode: DisplayMode;
+  }>;
+
+  setWidgetState: (state: WidgetState) => Promise<void>;
+};
+
+// Dispatched when any global changes in the host page
+export const SET_GLOBALS_EVENT_TYPE = "openai:set_globals";
+export class SetGlobalsEvent extends CustomEvent<{
+  globals: Partial<OpenAiGlobals>;
+}> {
+  readonly type = SET_GLOBALS_EVENT_TYPE;
+}
+
+export type CallTool = (
+  name: string,
+  args: Record<string, unknown>
+) => Promise<CallToolResponse>;
+
+export type DisplayMode = "pip" | "inline" | "fullscreen";
+
+export type Theme = "light" | "dark";
+
+export type SafeAreaInsets = {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+};
+
+export type SafeArea = {
+  insets: SafeAreaInsets;
+};
+
+export type DeviceType = "mobile" | "tablet" | "desktop" | "unknown";
+
+export type UserAgent = {
+  device: { type: DeviceType };
+  capabilities: {
+    hover: boolean;
+    touch: boolean;
   };
+};
 ```
+
+### useOpenAiGlobal
+
+Many Apps SDK projects wrap `window.openai` access in small hooks so views remain testable. This example hook listens for host `openai:set_globals` events and lets React components subscribe to a single global value:
+
+```
+export function useOpenAiGlobal<K extends keyof OpenAiGlobals>(
+  key: K
+): OpenAiGlobals[K] {
+  return useSyncExternalStore(
+    (onChange) => {
+      const handleSetGlobal = (event: SetGlobalsEvent) => {
+        const value = event.detail.globals[key];
+        if (value === undefined) {
+          return;
+        }
+
+        onChange();
+      };
+
+      window.addEventListener(SET_GLOBALS_EVENT_TYPE, handleSetGlobal, {
+        passive: true,
+      });
+
+      return () => {
+        window.removeEventListener(SET_GLOBALS_EVENT_TYPE, handleSetGlobal);
+      };
+    },
+    () => window.openai[key]
+  );
+}
+```
+
+`useOpenAiGlobal` is an important primitive to make your app reactive to changes in display mode, theme, and “props” via subsequent tool calls.
+
+For example, read the tool input, output, and metadata:
+
+```
+export function useToolInput() {
+  return useOpenAiGlobal('toolInput')
+}
+
+export function useToolOutput() {
+  return useOpenAiGlobal('toolOutput')
+}
+
+export function useToolResponseMetadata() {
+  return useOpenAiGlobal('toolResponseMetadata')
+}
+```
+
+### Persist component state, expose context to ChatGPT
+
+Widget state can be used for persisting data across user sessions, and exposing data to ChatGPT. Anything you pass to `setWidgetState` will be shown to the model, and hydrated into `window.openai.widgetState`.
+
+Note that currently everything passed to `setWidgetState` is shown to the model. For the best performance, it’s advisable to keep this payload small, and to not exceed more than 4k [tokens](https://platform.openai.com/tokenizer).
 
 ### Trigger server actions
 
@@ -73,10 +181,10 @@ async function refreshPlaces(city: string) {
 
 ### Send conversational follow-ups
 
-Use `window.openai.sendFollowupTurn` to insert a message into the conversation as if the user asked it.
+Use `window.openai.sendFollowupMessage` to insert a message into the conversation as if the user asked it.
 
 ```
-await window.openai?.sendFollowupTurn({
+await window.openai?.sendFollowupMessage({
   prompt: "Draft a tasting itinerary for the pizzerias I favorited.",
 });
 ```
@@ -88,36 +196,6 @@ If the UI needs more space—like maps, tables, or embedded editors—ask the ho
 ```
 await window.openai?.requestDisplayMode({ mode: "fullscreen" });
 // Note: on mobile, PiP may be coerced to fullscreen
-```
-
-### Respond to host updates
-
-The host can change layout, theming, or locale at any point. Read the globals on `window.openai` and listen for `openai:set_globals` so you can resize, restyle, or re-render as conditions change.
-
-Use the `window.openai` globals to respond to layout and theme changes:
-
-*   `window.openai.displayMode` tells you whether the component is inline, picture-in-picture, or fullscreen.
-*   `window.openai.maxHeight` indicates how much vertical space you can use before scrollbars appear.
-*   `window.openai.locale` returns the user’s locale (BCP 47 tag) and matches the iframe’s `lang` attribute.
-*   Listen for the `openai:set_globals` window event if you need to react to theme or layout changes.
-
-### Subscribe to tool responses
-
-Tool invocations can originate from the user, the assistant, or your own component. Subscribe to `openai:tool_response` when you want to refresh UI state whenever a background action completes. Remember to unsubscribe on unmount to avoid leaks.
-
-```
-React.useEffect(() => {
-  function onToolResponse(
-    e: CustomEvent<{ tool: { name: string; args: Record<string, unknown> } }>
-  ) {
-    if (e.detail.tool.name === "refresh_pizza_list") {
-      // Optionally update local UI after background tool calls
-      // e.detail.tool.args.city contains the city that was refreshed
-    }
-  }
-  window.addEventListener("openai:tool_response", onToolResponse as EventListener);
-  return () => window.removeEventListener("openai:tool_response", onToolResponse as EventListener);
-}, []);
 ```
 
 ### Use host-backed navigation
@@ -199,37 +277,7 @@ Each example shows how to bundle assets, wire host APIs, and structure state for
 
 ### React helper hooks
 
-Many Apps SDK projects wrap `window.openai` access in small hooks so views remain testable. This example hook listens for host `openai:set_globals` events and lets React components subscribe to a single global value:
-
-```
-export function useOpenAiGlobal<K extends keyof WebplusGlobals>(
-  key: K
-): WebplusGlobals[K] {
-  return useSyncExternalStore(
-    (onChange) => {
-      const handleSetGlobal = (event: SetGlobalsEvent) => {
-        const value = event.detail.globals[key];
-        if (value === undefined) {
-          return;
-        }
-
-        onChange();
-      };
-
-      window.addEventListener(SET_GLOBALS_EVENT_TYPE, handleSetGlobal, {
-        passive: true,
-      });
-
-      return () => {
-        window.removeEventListener(SET_GLOBALS_EVENT_TYPE, handleSetGlobal);
-      };
-    },
-    () => window.openai[key]
-  );
-}
-```
-
-Combine that with a `useWidgetState` hook to keep host-persisted widget state aligned with your local React state:
+Using `useOpenAiGlobal` in a `useWidgetState` hook to keep host-persisted widget state aligned with your local React state:
 
 ```
 export function useWidgetState<T extends WidgetState>(

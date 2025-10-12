@@ -2,13 +2,11 @@ Title: User Interaction
 
 URL Source: https://developers.openai.com/apps-sdk/concepts/user-interaction
 
-Published Time: Mon, 06 Oct 2025 21:01:33 GMT
-
 Markdown Content:
 Discovery
 ---------
 
-Discovery refers to the different ways a user or the model can find out about your app and the tools it provides: natural-language prompts, directory browsing, and proactive [entry points](https://developers.openai.com/apps-sdk/concepts/entry-points). Apps SDK leans on your tool metadata and past usage to make intelligent choices. Good discovery hygiene means your app appears when it should and stays quiet when it should not.
+Discovery refers to the different ways a user or the model can find out about your app and the tools it provides: natural-language prompts, directory browsing, and proactive [entry points](https://developers.openai.com/apps-sdk/concepts/user-interaction#entry-points). Apps SDK leans on your tool metadata and past usage to make intelligent choices. Good discovery hygiene means your app appears when it should and stays quiet when it should not.
 
 ### Named mention
 

@@ -2,7 +2,7 @@ Title: App design guidelines
 
 URL Source: https://developers.openai.com/apps-sdk/concepts/design-guidelines
 
-Published Time: Tue, 07 Oct 2025 10:34:18 GMT
+Published Time: Sat, 11 Oct 2025 04:52:23 GMT
 
 Markdown Content:
 Overview

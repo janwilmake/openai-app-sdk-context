@@ -2,7 +2,7 @@ Title: Set up your server
 
 URL Source: https://developers.openai.com/apps-sdk/build/mcp-server
 
-Published Time: Mon, 06 Oct 2025 21:01:42 GMT
+Published Time: Fri, 10 Oct 2025 19:49:34 GMT
 
 Markdown Content:
 Overview

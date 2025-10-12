@@ -2,7 +2,7 @@ Title: Apps SDK
 
 URL Source: https://developers.openai.com/apps-sdk/
 
-Published Time: Mon, 06 Oct 2025 21:01:30 GMT
+Published Time: Sun, 12 Oct 2025 10:59:47 GMT
 
 Markdown Content:
 Apps SDK
@@ -140,6 +140,7 @@ Resources Codex ChatGPT Blog
 
 ### Recent
 
+*   [How Codex ran OpenAI DevDay 2025](https://developers.openai.com/blog/codex-at-devday)
 *   [Why we built the Responses API](https://developers.openai.com/blog/responses-api)
 *   [Developer notes on the Realtime API](https://developers.openai.com/blog/realtime-api)
 *   [Hello, world!](https://developers.openai.com/blog/intro)

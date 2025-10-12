@@ -138,6 +138,7 @@ Resources Codex ChatGPT Blog
 
 ### Recent
 
+*   [How Codex ran OpenAI DevDay 2025](https://developers.openai.com/blog/codex-at-devday)
 *   [Why we built the Responses API](https://developers.openai.com/blog/responses-api)
 *   [Developer notes on the Realtime API](https://developers.openai.com/blog/realtime-api)
 *   [Hello, world!](https://developers.openai.com/blog/intro)

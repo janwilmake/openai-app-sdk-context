@@ -2,31 +2,13 @@ Title: Reference
 
 URL Source: https://developers.openai.com/apps-sdk/reference
 
+Published Time: Sat, 11 Oct 2025 09:27:03 GMT
+
 Markdown Content:
 `window.openai` component bridge
 --------------------------------
 
-Components rendered by ChatGPT run in a sandboxed iframe. The host injects a `window.openai` global so your bundle can exchange data with the conversation.
-
-| API | Purpose |
-| --- | --- |
-| `window.openai.toolInput` | Arguments ChatGPT provided to the tool call. |
-| `window.openai.toolOutput` | The JSON your tool returned. Use as initial render data. |
-| `window.openai.widgetState` | Persisted component state from prior renders. Read first and fall back to `toolOutput`. |
-| `window.openai.setWidgetState(state)` | Persist state back to the host. Returns a promise when stored. |
-| `window.openai.callTool(name, args)` | Invoke another tool exposed by your MCP server. Useful for in-component actions such as moving a task or refreshing data. |
-| `window.openai.sendFollowupTurn({ prompt })` | Insert a message into the conversation, often after a user clicks a button inside the component. |
-| `window.openai.requestDisplayMode({ mode })` | Request a layout change (`inline`, `pip`, `fullscreen`). The host decides whether to honour the request. |
-| `window.openai.maxHeight` / `displayMode` | Read-only globals describing the current layout constraints. |
-| `window.openai.locale` | Locale string for the active user (BCP 47). Use it to load translations, format numbers, and surface localized copy. |
-| `window.openai.theme` | Current theme (light/dark). |
-
-Listen for window events to react to host updates:
-
-*   `openai:set_globals` – dispatched when globals change (e.g., `displayMode`, `maxHeight`, `toolOutput`, `widgetState`).
-*   `openai:tool_response` – dispatched after `callTool` completes with details of the tool invocation.
-
-Compatibility: `window.oai` or `window.webplus` may be present for legacy components, but new components should use `window.openai`.
+See [build a custom UX](https://developers.openai.com/apps-sdk/build/custom-ux)
 
 Tool descriptor parameters
 --------------------------

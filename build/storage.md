@@ -2,8 +2,6 @@ Title: Storage
 
 URL Source: https://developers.openai.com/apps-sdk/build/storage
 
-Published Time: Tue, 07 Oct 2025 10:34:20 GMT
-
 Markdown Content:
 Storage
 
@@ -22,7 +20,7 @@ Search the docs
 
 Primary navigation
 
- ChatGPT 
+ChatGPT
 
 Resources Codex ChatGPT Blog
 
@@ -140,6 +138,7 @@ Resources Codex ChatGPT Blog
 
 ### Recent
 
+*   [How Codex ran OpenAI DevDay 2025](https://developers.openai.com/blog/codex-at-devday)
 *   [Why we built the Responses API](https://developers.openai.com/blog/responses-api)
 *   [Developer notes on the Realtime API](https://developers.openai.com/blog/realtime-api)
 *   [Hello, world!](https://developers.openai.com/blog/intro)

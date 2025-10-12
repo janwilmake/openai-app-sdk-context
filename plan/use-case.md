@@ -2,8 +2,6 @@ Title: Research use cases
 
 URL Source: https://developers.openai.com/apps-sdk/plan/use-case
 
-Published Time: Mon, 06 Oct 2025 21:01:41 GMT
-
 Markdown Content:
 Why start with use cases
 ------------------------

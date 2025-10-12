@@ -2,6 +2,8 @@ Title: MCP
 
 URL Source: https://developers.openai.com/apps-sdk/concepts/mcp-server
 
+Published Time: Sun, 12 Oct 2025 16:33:40 GMT
+
 Markdown Content:
 What is MCP?
 ------------
